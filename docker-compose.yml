@@ -8,4 +8,4 @@ services:
   backend:
     build: ./backend
     ports:
-      - "8080:5001"
+      - "80:8080"
