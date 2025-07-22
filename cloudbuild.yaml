@@ -43,7 +43,7 @@ steps:
       - --zone=asia-east1-b
       - --project=sylvan-hydra-464904-d9
 
-  # Step 4: Create startup script to install Docker and run Docker Compose
+  # Step 4: Create startup script to install Docker and restart containers
   - name: 'ubuntu'
     id: 'Create startup.sh'
     entrypoint: 'bash'
@@ -57,7 +57,9 @@ steps:
         sudo apt-get install -y unzip docker.io docker-compose
         unzip -o /home/sajja_vamsi/app-source.zip -d /home/sajja_vamsi
         cd /home/sajja_vamsi
-        sudo docker-compose up -d
+        sudo docker ps
+        sudo docker-compose down || true
+        sudo docker-compose up -d --build
         EOF
 
   # Step 5: Copy startup script to VM
