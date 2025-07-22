@@ -6,9 +6,9 @@ steps:
     args:
       - '-c'
       - |
-        VERSION_TAG="v-$(date +%Y%m%d-%H%M%S)"
-        echo "VERSION_TAG=$VERSION_TAG" > /workspace/version.env
-        echo "Generated version: $VERSION_TAG"
+        VERSION_TAG="v-$$(date +%Y%m%d-%H%M%S)"
+        echo "VERSION_TAG=$$VERSION_TAG" > /workspace/version.env
+        echo "Generated version: $$VERSION_TAG"
 
   # Step 1: Create Instance Template
   - name: 'gcr.io/cloud-builders/gcloud'
@@ -18,7 +18,7 @@ steps:
       - '-c'
       - |
         source /workspace/version.env
-        gcloud compute instance-templates create vamsi-template-$VERSION_TAG \
+        gcloud compute instance-templates create vamsi-template-$$VERSION_TAG \
           --machine-type=e2-medium \
           --region=asia-east1 \
           --image-family=debian-12 \
@@ -52,13 +52,13 @@ steps:
           echo "Creating MIG..."
           gcloud compute instance-groups managed create vamsi-mig \
             --base-instance-name=vamsi-instance \
-            --template=vamsi-template-$VERSION_TAG \
+            --template=vamsi-template-$$VERSION_TAG \
             --size=1 \
             --zone=asia-east1-b
         else
           echo "Updating MIG..."
           gcloud compute instance-groups managed set-instance-template vamsi-mig \
-            --template=vamsi-template-$VERSION_TAG \
+            --template=vamsi-template-$$VERSION_TAG \
             --zone=asia-east1-b
           gcloud compute instance-groups managed rolling-action restart vamsi-mig \
             --zone=asia-east1-b
