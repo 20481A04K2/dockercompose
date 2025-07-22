@@ -1,0 +1,86 @@
+steps:
+  # Step 1: Zip the current directory (excluding cloudbuild.yaml)
+  - name: 'ubuntu'
+    id: 'Zip source folder'
+    entrypoint: 'bash'
+    args:
+      - '-c'
+      - |
+        apt-get update && apt-get install -y zip
+        zip -r app-source.zip . -x "cloudbuild.yaml"
+
+  # Step 2: Check if VM exists, create only if it doesn't
+  - name: 'gcr.io/cloud-builders/gcloud'
+    id: 'Check and create VM'
+    entrypoint: 'bash'
+    args:
+      - '-c'
+      - |
+        if ! gcloud compute instances describe my-vm-instance --zone=asia-east1-b --project=sylvan-hydra-464904-d9 >/dev/null 2>&1; then
+          echo "VM does not exist. Creating..."
+          gcloud compute instances create my-vm-instance \
+            --zone=asia-east1-b \
+            --machine-type=e2-micro \
+            --image-family=debian-11 \
+            --image-project=debian-cloud \
+            --boot-disk-size=20GB \
+            --tags=http-server \
+            --scopes=https://www.googleapis.com/auth/cloud-platform \
+            --service-account=57920515119-compute@developer.gserviceaccount.com \
+            --project=sylvan-hydra-464904-d9
+        else
+          echo "VM already exists. Skipping creation."
+        fi
+
+  # Step 3: Copy ZIP file to VM
+  - name: 'gcr.io/cloud-builders/gcloud'
+    id: 'Copy ZIP to VM'
+    args:
+      - compute
+      - scp
+      - app-source.zip
+      - sajja_vamsi@my-vm-instance:/home/sajja_vamsi
+      - --zone=asia-east1-b
+      - --project=sylvan-hydra-464904-d9
+
+  # Step 4: Create startup script to install Docker and run Docker Compose
+  - name: 'ubuntu'
+    id: 'Create startup.sh'
+    entrypoint: 'bash'
+    args:
+      - '-c'
+      - |
+        cat << 'EOF' > startup.sh
+        #!/bin/bash
+        set -e
+        sudo apt-get update
+        sudo apt-get install -y unzip docker.io docker-compose
+        unzip -o /home/sajja_vamsi/app-source.zip -d /home/sajja_vamsi
+        cd /home/sajja_vamsi
+        sudo docker-compose up -d
+        EOF
+
+  # Step 5: Copy startup script to VM
+  - name: 'gcr.io/cloud-builders/gcloud'
+    id: 'Copy startup script to VM'
+    args:
+      - compute
+      - scp
+      - startup.sh
+      - sajja_vamsi@my-vm-instance:/home/sajja_vamsi
+      - --zone=asia-east1-b
+      - --project=sylvan-hydra-464904-d9
+
+  # Step 6: Run the startup script on the VM
+  - name: 'gcr.io/cloud-builders/gcloud'
+    id: 'Run startup.sh on VM'
+    args:
+      - compute
+      - ssh
+      - sajja_vamsi@my-vm-instance
+      - --zone=asia-east1-b
+      - --project=sylvan-hydra-464904-d9
+      - --command=bash /home/sajja_vamsi/startup.sh
+
+options:
+  logging: CLOUD_LOGGING_ONLY
